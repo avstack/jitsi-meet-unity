@@ -1,0 +1,19 @@
+{
+  "name": "io.avstack.jitsi",
+  "version": "0.1.0",
+  "displayName": "Jitsi Meet Unity",
+  "description": "Connect to Jitsi Meet WebRTC conferences within Unity for real-time audio & video",
+  "unity": "2019.4",
+  "documentationUrl": "https://github.com/avstack/jitsi-meet-unity",
+  "changelogUrl": "https://github.com/avstack/jitsi-meet-unity",
+  "licensesUrl": "https://github.com/avstack/jitsi-meet-unity",
+  "dependencies": {
+    "com.unity.webrtc": "2.4.0-exp.10"
+  },
+  "keywords": ["webrtc", "jitsi", "rtc", "audio", "video"],
+  "author": {
+    "name": "AVStack",
+    "email": "sales@avstack.io",
+    "url": "https://avstack.io/"
+  }
+}

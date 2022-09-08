@@ -1,0 +1,15 @@
+{
+	"name": "AVStack.Jitsi",
+	"references": [
+		"Unity.WebRTC"
+	],
+	"optionalUnityReferences": [],
+	"includePlatforms": [],
+	"excludePlatforms": [],
+	"allowUnsafeCode": false,
+	"overrideReferences": false,
+	"precompiledReferences": [],
+	"autoReferenced": true,
+	"defineConstraints": [],
+	"versionDefines": []
+}
