@@ -39,6 +39,11 @@ namespace AVStack.Jitsi
 
     public static void Dispose()
     {
+      asyncOperationQueue = null;
+
+      context.Dispose();
+      context = null;
+
       WebRTC.Dispose();
     }
 
@@ -50,17 +55,18 @@ namespace AVStack.Jitsi
       IEnumerator op;
       while (true)
       {
+        if (asyncOperationQueue == null)
+          break;
+        
         if (asyncOperationQueue.TryDequeue(out op))
-        {
-          Debug.Log("Running Jitsi background work");
           yield return parent.StartCoroutine(op);
-        }
+        
         yield return null;
       }
     }
   }
 
-  public class Context
+  public class Context: IDisposable
   {
     internal IntPtr nativeContext;
 
@@ -69,9 +75,11 @@ namespace AVStack.Jitsi
       nativeContext = NativeMethods.jitsi_context_create();
     }
 
-    ~Context()
+    public void Dispose()
     {
-      NativeMethods.jitsi_context_free(nativeContext);
+      if (this.nativeContext != IntPtr.Zero)
+        NativeMethods.jitsi_context_free(this.nativeContext);
+      this.nativeContext = IntPtr.Zero;
     }
   }
 
@@ -154,7 +162,7 @@ namespace AVStack.Jitsi
 
     ~Conference()
     {
-      // Leave
+      NativeMethods.jitsi_conference_free(this.nativeConference);
     }
 
     public string LocalEndpointId()
@@ -363,6 +371,8 @@ namespace AVStack.Jitsi
     );
     [DllImport(Jitsi.Lib)]
     public static extern StringHandle jitsi_conference_local_endpoint_id(IntPtr conference);
+    [DllImport(Jitsi.Lib)]
+    public static extern void jitsi_conference_free(IntPtr conference);
     [DllImport(Jitsi.Lib)]
     public static extern StringHandle jitsi_participant_jid(IntPtr participant);
     [DllImport(Jitsi.Lib)]
