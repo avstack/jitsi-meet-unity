@@ -157,6 +157,11 @@ namespace AVStack.Jitsi
       // Leave
     }
 
+    public string LocalEndpointId()
+    {
+      return NativeMethods.jitsi_conference_local_endpoint_id(this.nativeConference).AsString();
+    }
+
     private void InitPeerConnection()
     {
       this.peerConnection = new RTCPeerConnection();
@@ -356,6 +361,8 @@ namespace AVStack.Jitsi
       [MarshalAs(UnmanagedType.LPUTF8Str)]
       string sessionDescription
     );
+    [DllImport(Jitsi.Lib)]
+    public static extern StringHandle jitsi_conference_local_endpoint_id(IntPtr conference);
     [DllImport(Jitsi.Lib)]
     public static extern StringHandle jitsi_participant_jid(IntPtr participant);
     [DllImport(Jitsi.Lib)]

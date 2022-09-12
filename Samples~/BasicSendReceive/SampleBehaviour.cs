@@ -166,9 +166,16 @@ public class SampleBehaviour : MonoBehaviour
         var localTracks = new MediaStreamTrack[] { this.localVideoTrack, this.localAudioTrack };
 
         Debug.Log("Connecting");
+        // new Connection() currently blocks until the connection is established.
+        // This will be changed to be asycnchronous in future
         this.connection = new Connection("wss://example.com/xmpp-websocket", "example.com", false);
+
         Debug.Log("Joining conference");
+        // join() currently blocks until the room is joined.
+        // This will be changed to be asycnchronous in future
         this.conference = this.connection.join("nativeroom", "unitynick", localTracks, new ConferenceDelegate(this));
-        Debug.Log("Joined");
+
+        var localEndpointId = this.conference.LocalEndpointId();
+        Debug.Log($"Joined. My endpoint ID: {localEndpointId}");
     }
 }
