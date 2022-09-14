@@ -26,12 +26,8 @@ namespace AVStack.Jitsi
       Debug.Log("Initialising WebRTC");
       WebRTC.Initialize();
 
-      Debug.Log("Initialising Jitsi logging");
-      if (!NativeMethods.jitsi_logging_init_file("/Users/jbg/dev/avstack/jitsi-unity.log", "debug")) {
-        Debug.Log("Failed to initialise Jitsi logging");
-      }
-
       Debug.Log("Initialising Jitsi native");
+      // NativeMethods.jitsi_logging_init_stdout("debug");
       context = new Context();
 
       asyncOperationQueue = new ConcurrentQueue<IEnumerator>();
@@ -89,12 +85,14 @@ namespace AVStack.Jitsi
 
     public Connection(string websocketUrl, string xmppDomain, bool tlsInsecure)
     {
-      nativeConnection = NativeMethods.jitsi_connection_connect(Jitsi.context.nativeContext, websocketUrl, xmppDomain, tlsInsecure);
+      this.nativeConnection = NativeMethods.jitsi_connection_connect(Jitsi.context.nativeContext, websocketUrl, xmppDomain, tlsInsecure);
+      if (this.nativeConnection == IntPtr.Zero)
+        throw new JitsiException("jitsi_connection_connect failed");
     }
 
     ~Connection()
     {
-      NativeMethods.jitsi_connection_free(nativeConnection);
+      NativeMethods.jitsi_connection_free(this.nativeConnection);
     }
 
     public Conference join(string conferenceName, string nick, MediaStreamTrack[] localTracks, IConferenceDelegate conferenceDelegate)
@@ -110,6 +108,11 @@ namespace AVStack.Jitsi
     internal Participant(IntPtr nativeParticipant)
     {
       this.nativeParticipant = nativeParticipant;
+    }
+
+    ~Participant()
+    {
+      NativeMethods.jitsi_participant_free(this.nativeParticipant);
     }
 
     public string Jid()
@@ -132,12 +135,18 @@ namespace AVStack.Jitsi
   {
     IEnumerator ParticipantJoined(Participant participant);
     IEnumerator ParticipantLeft(Participant participant);
-    IEnumerator RemoteAudioTrackAdded(AudioStreamTrack audioTrack);
-    IEnumerator RemoteAudioTrackRemoved(AudioStreamTrack audioTrack);
-    IEnumerator RemoteVideoTrackAdded(VideoStreamTrack videoTrack);
-    IEnumerator RemoteVideoTrackRemoved(VideoStreamTrack videoTrack);
-    IEnumerator VideoReceived(string trackId, Texture texture);
+    IEnumerator RemoteAudioTrackAdded(Participant participant, AudioStreamTrack audioTrack);
+    IEnumerator RemoteAudioTrackRemoved(Participant participant, AudioStreamTrack audioTrack);
+    IEnumerator RemoteVideoTrackAdded(Participant participant, VideoStreamTrack videoTrack);
+    IEnumerator RemoteVideoTrackRemoved(Participant participant, VideoStreamTrack videoTrack);
+    IEnumerator VideoReceived(Participant participant, VideoStreamTrack videoTrack, Texture texture);
     IEnumerator SessionTerminate();
+  }
+
+  public class JitsiException : Exception
+  {
+    internal JitsiException() : base() {}
+    internal JitsiException(string message) : base(message) {}
   }
 
   public class Conference
@@ -169,6 +178,8 @@ namespace AVStack.Jitsi
       };
       Debug.Log($"Created Agent opaque={agent.opaque}");
       this.nativeConference = NativeMethods.jitsi_connection_join(Jitsi.context.nativeContext, connection.nativeConnection, conferenceName, nick, ref agent);
+      if (this.nativeConference == IntPtr.Zero)
+        throw new JitsiException("jitsi_connection_join failed");
     }
 
     ~Conference()
@@ -181,6 +192,15 @@ namespace AVStack.Jitsi
       return NativeMethods.jitsi_conference_local_endpoint_id(this.nativeConference).AsString();
     }
 
+    public Participant Participant(string endpointId)
+    {
+      var nativeParticipant = NativeMethods.jitsi_conference_participant(Jitsi.context.nativeContext, this.nativeConference, endpointId);
+      if (nativeParticipant != IntPtr.Zero)
+        return new Participant(nativeParticipant);
+      else
+        return null;
+    }
+
     private void InitPeerConnection()
     {
       this.peerConnection = new RTCPeerConnection();
@@ -190,31 +210,34 @@ namespace AVStack.Jitsi
       {
         var mediaStream = e.Streams.First();
 
+        var endpointId = mediaStream.Id.Split('-').First();
+        var participant = this.Participant(endpointId);
+
         if (e.Track is VideoStreamTrack videoTrack)
         {
-          Debug.Log($"Video track added: {videoTrack}");
+          Debug.Log($"Video track added: {videoTrack.Id} in media stream: {mediaStream.Id}");
           videoTrack.OnVideoReceived += texture =>
           {
-            Debug.Log($"Received new video texture: {texture} for track: {videoTrack}");
-            Jitsi.asyncOperationQueue.Enqueue(this.conferenceDelegate.VideoReceived(videoTrack.Id, texture));
+            Debug.Log($"Received new video texture: {texture} for track: {videoTrack.Id} in media stream: {mediaStream.Id}");
+            Jitsi.asyncOperationQueue.Enqueue(this.conferenceDelegate.VideoReceived(participant, videoTrack, texture));
           };
-          Jitsi.asyncOperationQueue.Enqueue(this.conferenceDelegate.RemoteVideoTrackAdded(videoTrack));
+          Jitsi.asyncOperationQueue.Enqueue(this.conferenceDelegate.RemoteVideoTrackAdded(participant, videoTrack));
 
           mediaStream.OnRemoveTrack = e =>
           {
-            Debug.Log($"Video track removed: {videoTrack}");
-            Jitsi.asyncOperationQueue.Enqueue(this.conferenceDelegate.RemoteVideoTrackRemoved(videoTrack));
+            Debug.Log($"Video track removed: {videoTrack.Id} in media stream: {mediaStream.Id}");
+            Jitsi.asyncOperationQueue.Enqueue(this.conferenceDelegate.RemoteVideoTrackRemoved(participant, videoTrack));
           };
         }
         else if (e.Track is AudioStreamTrack audioTrack)
         {
-          Debug.Log($"Audio track added: {audioTrack}");
-          Jitsi.asyncOperationQueue.Enqueue(this.conferenceDelegate.RemoteAudioTrackAdded(audioTrack));
+          Debug.Log($"Audio track added: {audioTrack.Id} in media stream: {mediaStream.Id}");
+          Jitsi.asyncOperationQueue.Enqueue(this.conferenceDelegate.RemoteAudioTrackAdded(participant, audioTrack));
           
           mediaStream.OnRemoveTrack = e =>
           {
-            Debug.Log($"Audio track removed: {audioTrack}");
-            Jitsi.asyncOperationQueue.Enqueue(this.conferenceDelegate.RemoteAudioTrackRemoved(audioTrack));
+            Debug.Log($"Audio track removed: {audioTrack.Id} in media stream: {mediaStream.Id}");
+            Jitsi.asyncOperationQueue.Enqueue(this.conferenceDelegate.RemoteAudioTrackRemoved(participant, audioTrack));
           };
         }
       };
@@ -383,6 +406,13 @@ namespace AVStack.Jitsi
     [DllImport(Jitsi.Lib)]
     public static extern StringHandle jitsi_conference_local_endpoint_id(IntPtr conference);
     [DllImport(Jitsi.Lib)]
+    public static extern IntPtr jitsi_conference_participant(
+      IntPtr context,
+      IntPtr conference,
+      [MarshalAs(UnmanagedType.LPUTF8Str)]
+      string endpointId
+    );
+    [DllImport(Jitsi.Lib)]
     public static extern void jitsi_conference_free(IntPtr conference);
     [DllImport(Jitsi.Lib)]
     public static extern StringHandle jitsi_participant_jid(IntPtr participant);
@@ -390,6 +420,8 @@ namespace AVStack.Jitsi
     public static extern StringHandle jitsi_participant_nick(IntPtr participant);
     [DllImport(Jitsi.Lib)]
     public static extern StringHandle jitsi_participant_endpoint_id(IntPtr participant);
+    [DllImport(Jitsi.Lib)]
+    public static extern void jitsi_participant_free(IntPtr participant);
     [DllImport(Jitsi.Lib)]
     public static extern void jitsi_string_free(IntPtr s);
 

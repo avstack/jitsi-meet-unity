@@ -60,34 +60,34 @@ public class SampleBehaviour : MonoBehaviour
             yield return null;
         }
 
-        public IEnumerator RemoteAudioTrackAdded(AudioStreamTrack audioTrack)
+        public IEnumerator RemoteAudioTrackAdded(Participant participant, AudioStreamTrack audioTrack)
         {
             Debug.Log($"Remote audio track added: {audioTrack.Id}");
             // audioTrack.source is an AudioSource
             yield return null;
         }
 
-        public IEnumerator RemoteAudioTrackRemoved(AudioStreamTrack audioTrack)
+        public IEnumerator RemoteAudioTrackRemoved(Participant participant, AudioStreamTrack audioTrack)
         {
             Debug.Log($"Remote audio track removed: {audioTrack.Id}");
             yield return null;
         }
 
-        public IEnumerator RemoteVideoTrackAdded(VideoStreamTrack videoTrack)
+        public IEnumerator RemoteVideoTrackAdded(Participant participant, VideoStreamTrack videoTrack)
         {
             Debug.Log($"Remote video track added: {videoTrack.Id}");
             // We defer adding the tile until we get the video texture in VideoReceived
             yield return null;
         }
 
-        public IEnumerator RemoteVideoTrackRemoved(VideoStreamTrack videoTrack)
+        public IEnumerator RemoteVideoTrackRemoved(Participant participant, VideoStreamTrack videoTrack)
         {
             Debug.Log($"Remote video track removed: {videoTrack.Id}");
             this.behaviour.RemoveRemoteTile(videoTrack.Id);
             yield return null;
         }
 
-        public IEnumerator VideoReceived(string trackId, Texture texture)
+        public IEnumerator VideoReceived(Participant participant, VideoStreamTrack videoTrack, Texture texture)
         {
             Debug.Log("Video received");
             this.behaviour.AddRemoteTile(trackId, texture);
@@ -167,12 +167,12 @@ public class SampleBehaviour : MonoBehaviour
 
         Debug.Log("Connecting");
         // new Connection() currently blocks until the connection is established.
-        // This will be changed to be asycnchronous in future
+        // This will be changed to be asynchronous in future
         this.connection = new Connection("wss://example.com/xmpp-websocket", "example.com", false);
 
         Debug.Log("Joining conference");
         // join() currently blocks until the room is joined.
-        // This will be changed to be asycnchronous in future
+        // This will be changed to be asynchronous in future
         this.conference = this.connection.join("nativeroom", "unitynick", localTracks, new ConferenceDelegate(this));
 
         var localEndpointId = this.conference.LocalEndpointId();
