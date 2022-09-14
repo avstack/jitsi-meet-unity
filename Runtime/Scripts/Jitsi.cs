@@ -105,15 +105,26 @@ namespace AVStack.Jitsi
 
   public class Participant
   {
-    public string jid;
-    public string nick;
+    IntPtr nativeParticipant;
 
     internal Participant(IntPtr nativeParticipant)
     {
-      var jid = NativeMethods.jitsi_participant_jid(nativeParticipant);
-      this.jid = jid.AsString();
-      var nick = NativeMethods.jitsi_participant_nick(nativeParticipant);
-      this.nick = nick.AsString();
+      this.nativeParticipant = nativeParticipant;
+    }
+
+    public string Jid()
+    {
+      return NativeMethods.jitsi_participant_jid(this.nativeParticipant).AsString();
+    }
+
+    public string Nick()
+    {
+      return NativeMethods.jitsi_participant_nick(this.nativeParticipant).AsString();
+    }
+
+    public string EndpointId()
+    {
+      return NativeMethods.jitsi_participant_endpoint_id(this.nativeParticipant).AsString();
     }
   }
 
@@ -377,6 +388,8 @@ namespace AVStack.Jitsi
     public static extern StringHandle jitsi_participant_jid(IntPtr participant);
     [DllImport(Jitsi.Lib)]
     public static extern StringHandle jitsi_participant_nick(IntPtr participant);
+    [DllImport(Jitsi.Lib)]
+    public static extern StringHandle jitsi_participant_endpoint_id(IntPtr participant);
     [DllImport(Jitsi.Lib)]
     public static extern void jitsi_string_free(IntPtr s);
 
